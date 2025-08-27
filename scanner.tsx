@@ -43,8 +43,8 @@ const InfoIcon = (p: React.SVGProps<SVGSVGElement>) => <svg {...p} xmlns="http:/
 const LoadingScreen: React.FC<{ text: string }> = ({ text }) => (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white p-4">
         <div className="text-center">
-            <ScanLineIcon className="w-24 h-24 mx-auto mb-6 text-indigo-400 animate-pulse-strong" />
-            <h1 className="text-3xl font-bold mb-4">الماسح الضوئي</h1>
+            <ScanLineIcon className="w-24 h-24 mx-auto mb-6 text-blue-400 animate-pulse-strong" />
+            <h1 className="text-3xl font-bold mb-4">الماسح الضوئي | YSK Sales</h1>
             <p className="text-lg text-gray-300">{text}</p>
         </div>
     </div>
@@ -129,13 +129,13 @@ const ConfigScreen: React.FC<{ onSave: (config: FirebaseConfig) => void; error?:
         <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
             <div className="w-full max-w-lg bg-gray-800 rounded-2xl shadow-2xl p-8 space-y-6 fade-in">
                 <div className="text-center">
-                    <ScanLineIcon className="w-16 h-16 mx-auto text-indigo-400" />
+                    <ScanLineIcon className="w-16 h-16 mx-auto text-blue-400" />
                     <h1 className="text-2xl font-bold mt-4">إعدادات الاتصال</h1>
                     <p className="text-gray-400">أدخل بيانات مشروع Firebase للربط مع النظام الرئيسي.</p>
                 </div>
                 {(error || localError) && <div className="bg-red-900/50 border border-red-500 text-red-300 p-3 rounded-md text-sm">{error || localError}</div>}
                 
-                <textarea value={pasteArea} onChange={e => setPasteArea(e.target.value)} placeholder="أو الصق كائن إعدادات Firebase هنا..." className="w-full p-2 bg-gray-900 border border-gray-600 rounded-md h-24 font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" dir="ltr"></textarea>
+                <textarea value={pasteArea} onChange={e => setPasteArea(e.target.value)} placeholder="أو الصق كائن إعدادات Firebase هنا..." className="w-full p-2 bg-gray-900 border border-gray-600 rounded-md h-24 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" dir="ltr"></textarea>
                 <button onClick={handlePasteAndParse} className="w-full py-2 bg-gray-600 hover:bg-gray-500 rounded-md font-semibold">تحليل ولصق</button>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -145,12 +145,12 @@ const ConfigScreen: React.FC<{ onSave: (config: FirebaseConfig) => void; error?:
                             value={(config as any)[key] || ''} 
                             onChange={e => { setConfig(p => ({...p, [key]: e.target.value})); setLocalError(''); }} 
                             placeholder={key} 
-                            className="w-full p-2 bg-gray-900 border border-gray-600 rounded-md font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" 
+                            className="w-full p-2 bg-gray-900 border border-gray-600 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
                             dir="ltr" 
                             required={key !== 'measurementId'} 
                         />
                     ))}
-                    <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-bold text-lg">حفظ والاتصال</button>
+                    <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold text-lg">حفظ والاتصال</button>
                 </form>
             </div>
         </div>
@@ -167,7 +167,7 @@ const ProductDetailModal: React.FC<{ product: Product; onClose: () => void }> = 
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-300"><XIcon className="w-6 h-6"/></button>
                 </div>
                 <div className="space-y-3 text-gray-300">
-                    <p className="flex justify-between"><span>السعر:</span> <span className="font-bold text-lg text-indigo-400">{currencyFormat(product.price)}</span></p>
+                    <p className="flex justify-between"><span>السعر:</span> <span className="font-bold text-lg text-blue-400">{currencyFormat(product.price)}</span></p>
                     <p className="flex justify-between"><span>التكلفة:</span> <span>{currencyFormat(product.cost)}</span></p>
                     <p className="flex justify-between"><span>المخزون:</span> <span>{product.stock} {product.unit}</span></p>
                     <p className="flex justify-between"><span>الفئة:</span> <span>{product.category}</span></p>
@@ -187,214 +187,240 @@ const ScannerView: React.FC<{ onScan: (code: string) => void }> = ({ onScan }) =
     const [scanSuccess, setScanSuccess] = useState(false);
     const scanSoundRef = useRef<HTMLAudioElement | null>(null);
 
-    useEffect(() => {
-        scanSoundRef.current = new Audio("https://cdn.jsdelivr.net/gh/pixel-guy/pixel-assets/scan.mp3");
-        codeReaderRef.current = new ZXing.BrowserMultiFormatReader();
-        startCamera();
-        return () => codeReaderRef.current?.reset();
-    }, []);
-
     const startCamera = useCallback(async () => {
         setError('');
         setIsScanning(true);
         try {
             await codeReaderRef.current.decodeFromVideoDevice(undefined, videoRef.current, (result: any, err: any) => {
-                if (result && !scanSuccess) {
-                    setScanSuccess(true);
-                    scanSoundRef.current?.play();
-                    onScan(result.getText());
-                    setTimeout(() => setScanSuccess(false), 1500);
+                if (result) {
+                    setScanSuccess(alreadyScanned => {
+                        if (!alreadyScanned) {
+                            scanSoundRef.current?.play();
+                            onScan(result.getText());
+                            setTimeout(() => setScanSuccess(false), 1500);
+                            return true;
+                        }
+                        return alreadyScanned;
+                    });
                 }
             });
         } catch (err: any) {
-            setError('فشل تشغيل الكاميرا. يرجى منح الإذن اللازم.');
+            setError('فشل تشغيل الكاميرا. تأكد من وجود كاميرا وتفعيل الأذونات.');
             setIsScanning(false);
+            console.error(err);
         }
-    }, [onScan, scanSuccess]);
+    }, [onScan]);
+
+    useEffect(() => {
+        scanSoundRef.current = new Audio("https://cdn.jsdelivr.net/gh/pixel-guy/pixel-assets/scan.mp3");
+        codeReaderRef.current = new ZXing.BrowserMultiFormatReader();
+        startCamera();
+        return () => codeReaderRef.current?.reset();
+    }, [startCamera]);
 
     return (
-        <div className="h-full w-full bg-black flex items-center justify-center text-center">
-            <video ref={videoRef} className="h-full w-full object-cover" playsInline />
-            {error && <div className="absolute inset-0 bg-black/70 flex flex-col p-4 justify-center items-center"><AlertTriangleIcon className="w-12 h-12 text-red-400 mb-4"/><p>{error}</p></div>}
-            <div className={`absolute inset-0 transition-colors duration-300 ${scanSuccess ? 'bg-green-500/30' : 'bg-transparent'}`} />
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 max-w-sm h-32 border-4 ${scanSuccess ? 'border-green-400 shadow-2xl shadow-green-400/50' : 'border-white/80'} rounded-2xl transition-all duration-300`} />
-        </div>
-    );
-};
-
-const ProductsView: React.FC<{ products: Product[], onProductClick: (p: Product) => void }> = ({ products, onProductClick }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const filteredProducts = useMemo(() => {
-        if (!searchTerm) return products;
-        const lower = searchTerm.toLowerCase();
-        return products.filter(p => p.name.toLowerCase().includes(lower) || p.barcode.includes(lower));
-    }, [products, searchTerm]);
-
-    return (
-        <div className="p-4 pb-20">
-            <div className="relative mb-4">
-                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input type="text" placeholder="ابحث..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-lg py-3 px-4 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none"/>
-            </div>
-            {filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {filteredProducts.map(p => (
-                        <div key={p.id} onClick={() => onProductClick(p)} className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700 cursor-pointer active:scale-95 transition-transform">
-                            <h3 className="font-bold text-white truncate">{p.name}</h3>
-                            <p className="text-indigo-400 font-semibold">{p.price.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</p>
-                            <p className="text-sm text-gray-400">المخزون: {p.stock} {p.unit}</p>
-                        </div>
-                    ))}
+        <div className="relative w-full aspect-video bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700">
+            <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" muted playsInline />
+            
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-3/4 max-w-sm h-1/2 relative">
+                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-white/50 rounded-tl-lg"></div>
+                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-white/50 rounded-tr-lg"></div>
+                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-white/50 rounded-bl-lg"></div>
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-white/50 rounded-br-lg"></div>
+                    {isScanning && !scanSuccess && (
+                        <div className="absolute top-1/2 left-2 right-2 h-1 bg-red-500/70 rounded-full shadow-[0_0_10px_2px_rgba(239,68,68,0.7)] animate-pulse"></div>
+                    )}
                 </div>
-            ) : (
-                 <div className="text-center py-16 text-gray-500">
-                    <PackageIcon className="w-16 h-16 mx-auto text-gray-600 mb-2"/>
-                    <p>{products.length === 0 ? "لم تتم مزامنة أي منتجات." : "لم يتم العثور على منتجات."}</p>
+            </div>
+
+            {scanSuccess && (
+                <div className="absolute inset-0 bg-green-500/50 flex items-center justify-center">
+                    <CheckCircleIcon className="w-20 h-20 text-white" />
+                </div>
+            )}
+
+            {error && (
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-center p-4">
+                    <AlertTriangleIcon className="w-12 h-12 text-red-400 mb-3" />
+                    <p className="text-white text-lg mb-4">{error}</p>
+                    <button onClick={startCamera} className="px-5 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">
+                        أعد المحاولة
+                    </button>
+                </div>
+            )}
+
+            {!isScanning && !error && (
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                    <p className="text-white text-lg animate-pulse">جاري بدء الكاميرا...</p>
                 </div>
             )}
         </div>
     );
 };
 
-const SettingsView: React.FC<{ onClearConfig: () => void }> = ({ onClearConfig }) => {
-    const handleClear = () => {
-        if(window.confirm('هل أنت متأكد؟ سيؤدي هذا إلى مسح إعدادات الاتصال الحالية.')) {
-            onClearConfig();
-        }
-    };
+const ProductListScreen: React.FC<{ products: Product[]; onSelect: (product: Product) => void }> = ({ products, onSelect }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const filteredProducts = useMemo(() => 
+        products.filter(p => 
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.barcode.includes(searchTerm)
+        ), [products, searchTerm]);
+
     return (
-        <div className="p-6 space-y-4">
-            <h2 className="text-xl font-bold">الإعدادات</h2>
-            <div className="bg-gray-800 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">إعادة ضبط الاتصال</h3>
-                <p className="text-sm text-gray-400 mb-4">استخدم هذا الخيار لمسح إعدادات Firebase الحالية والبدء من جديد.</p>
-                <button onClick={handleClear} className="w-full py-2 bg-red-800 hover:bg-red-700 rounded-md font-semibold">مسح الإعدادات</button>
+        <div className="p-4 flex flex-col h-full">
+            <div className="relative mb-4">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input 
+                    type="text" 
+                    placeholder="ابحث بالاسم أو الباركود..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-4 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+            </div>
+            <div className="flex-grow overflow-y-auto -mx-4 px-4">
+                <div className="space-y-2">
+                    {filteredProducts.map(p => (
+                        <div key={p.id} onClick={() => onSelect(p)} className="bg-gray-800 p-3 rounded-lg flex justify-between items-center cursor-pointer hover:bg-gray-700 transition-colors">
+                            <div>
+                                <h3 className="font-semibold">{p.name}</h3>
+                                <p className="text-sm text-gray-400 font-mono">{p.barcode}</p>
+                            </div>
+                            <span className="text-lg font-bold text-blue-400">{p.stock}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );
 };
 
-const BottomNav: React.FC<{ activePage: Page; onNavigate: (page: Page) => void }> = ({ activePage, onNavigate }) => {
-    const navItems = [
-        { page: 'scanner' as Page, icon: ScanLineIcon },
-        { page: 'products' as Page, icon: PackageIcon },
-        { page: 'settings' as Page, icon: SettingsIcon },
-    ];
-    return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-gray-900/80 backdrop-blur-sm border-t border-gray-700 flex justify-around h-16 z-10">
-            {navItems.map(({ page, icon: Icon }) => (
-                <button key={page} onClick={() => onNavigate(page)} className={`flex items-center justify-center w-full transition-colors ${activePage === page ? 'text-indigo-400' : 'text-gray-400 hover:text-indigo-400'}`}>
-                    <Icon className="w-8 h-8"/>
-                </button>
-            ))}
-        </nav>
-    );
-};
-
-const ScannerApp: React.FC<{ onClearConfig: () => void }> = ({ onClearConfig }) => {
-    const [activePage, setActivePage] = useState<Page>('scanner');
+const App: React.FC = () => {
+    const [page, setPage] = useState<Page>('scanner');
     const [products, setProducts] = useState<Product[]>([]);
+    const [firebaseConfig, setFirebaseConfig] = useLocalStorage<FirebaseConfig | null>('scannerFirebaseConfig', null);
+    const [firebaseError, setFirebaseError] = useState('');
+    const [isFirebaseReady, setIsFirebaseReady] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [loadingText, setLoadingText] = useState('جاري التحقق من الإعدادات...');
     const [toast, setToast] = useState<ToastMessage | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-    useEffect(() => {
-        const productsRef = firebase.database().ref('syncedData/products');
-        productsRef.on('value', (snapshot: any) => {
-            const data = snapshot.val();
-            if (data && Array.isArray(data)) setProducts(data);
-            setIsLoading(false);
-        }, (error: any) => {
-            console.error(error);
-            setIsLoading(false);
-            addToast("فشل في مزامنة البيانات.", "error");
-        });
-        return () => productsRef.off();
-    }, []);
-
-    const addToast = (message: string, type: ToastMessage['type']) => {
+    const showToast = (message: string, type: ToastMessage['type']) => {
         setToast({ id: Date.now(), message, type });
     };
 
-    const handleScan = useCallback((code: string) => {
-        // First, send the code to the main app via Firebase
+    const initializeFirebase = useCallback((config: FirebaseConfig) => {
+        setLoadingText('جاري الاتصال بقاعدة البيانات...');
         try {
-            firebase.database().ref('barcodeScanner/scannedCode').set({ code, timestamp: Date.now() });
-        } catch (e) {
-            console.error("Failed to send scan to main app", e);
-            addToast(`فشل إرسال الكود.`, 'error');
-            return; // Exit if Firebase fails
+            if (!firebase.apps.length) {
+                firebase.initializeApp(config);
+            }
+            setFirebaseError('');
+            setIsFirebaseReady(true);
+        } catch (e: any) {
+            console.error("Firebase init failed", e);
+            setFirebaseError(`فشل الاتصال: ${e.message}`);
+            setIsFirebaseReady(false);
+            setFirebaseConfig(null);
+            setIsLoading(false);
         }
+    }, [setFirebaseConfig]);
 
-        // Second, check if the product exists locally and update UI accordingly
-        const product = products.find(p => p.barcode === code);
-        if (product) {
-            setSelectedProduct(product);
-            addToast(`تم العثور على: ${product.name}`, 'success');
+    useEffect(() => {
+        if (firebaseConfig) {
+            initializeFirebase(firebaseConfig);
         } else {
-            // Product not found, which is fine for new products. Just show an info toast.
-            addToast(`تم إرسال الكود: ${code}`, 'info');
+            setIsLoading(false);
         }
-    }, [products]);
+    }, [firebaseConfig, initializeFirebase]);
 
-    if (isLoading) return <LoadingScreen text="جاري مزامنة المنتجات..." />;
+    useEffect(() => {
+        if (!isFirebaseReady) return;
+        
+        setLoadingText('جاري مزامنة بيانات المنتجات...');
+        const db = firebase.database();
+        const productsRef = db.ref('syncedData/products');
+        
+        const listener = productsRef.on('value', (snapshot: any) => {
+            const data = snapshot.val();
+            if (data && Array.isArray(data)) {
+                setProducts(data);
+                if (isLoading) showToast('تمت مزامنة المنتجات بنجاح!', 'success');
+            }
+            setIsLoading(false);
+        }, (error: any) => {
+            console.error("Firebase read failed", error);
+            setFirebaseError('فشل في قراءة البيانات. تحقق من أذونات قاعدة البيانات.');
+            setIsLoading(false);
+        });
 
+        return () => productsRef.off('value', listener);
+    }, [isFirebaseReady, isLoading]);
+
+    const handleScan = (code: string) => {
+        const db = firebase.database();
+        db.ref('barcodeScanner/scannedCode').set({
+            code: code,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        const product = products.find(p => p.barcode === code);
+        if(product) {
+            showToast(`تم العثور على: ${product.name}`, 'success');
+            setSelectedProduct(product);
+        } else {
+            showToast(`تم إرسال الكود: ${code}`, 'info');
+        }
+    };
+
+    if (isLoading) {
+        return <LoadingScreen text={loadingText} />;
+    }
+    
+    if (!firebaseConfig || !isFirebaseReady) {
+        return <ConfigScreen onSave={setFirebaseConfig} error={firebaseError} initialConfig={firebaseConfig} />;
+    }
+    
     const renderPage = () => {
-        switch(activePage) {
+        switch (page) {
             case 'scanner': return <ScannerView onScan={handleScan} />;
-            case 'products': return <ProductsView products={products} onProductClick={setSelectedProduct} />;
-            case 'settings': return <SettingsView onClearConfig={onClearConfig} />;
+            case 'products': return <ProductListScreen products={products} onSelect={setSelectedProduct} />;
+            case 'settings': return <ConfigScreen onSave={setFirebaseConfig} initialConfig={firebaseConfig} />;
+            default: return null;
         }
     };
 
     return (
-        <div className="h-screen w-screen overflow-hidden flex flex-col bg-gray-900">
-            <main className="flex-1 overflow-y-auto">{renderPage()}</main>
-            <BottomNav activePage={activePage} onNavigate={setActivePage} />
-            {selectedProduct && <ProductDetailModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />}
+        <div className="h-screen bg-gray-900 text-white flex flex-col font-sans">
             {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+            {selectedProduct && <ProductDetailModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />}
+
+            <header className="flex-shrink-0 bg-gray-800/80 backdrop-blur-sm p-4 flex justify-between items-center border-b border-gray-700">
+                 <div className="flex items-center gap-3">
+                    <ScanLineIcon className="w-8 h-8 text-blue-400" />
+                    <h1 className="text-xl font-bold">الماسح الضوئي | YSK Sales</h1>
+                </div>
+                {isFirebaseReady ? 
+                    <div className="flex items-center gap-2 text-green-400 text-sm"><CheckCircleIcon className="w-5 h-5"/> متصل</div> :
+                    <div className="flex items-center gap-2 text-red-400 text-sm"><WifiOffIcon className="w-5 h-5"/> غير متصل</div>
+                }
+            </header>
+            
+            <main className="flex-grow overflow-y-auto">
+                {renderPage()}
+            </main>
+
+            <footer className="flex-shrink-0 bg-gray-800/80 backdrop-blur-sm grid grid-cols-3 border-t border-gray-700">
+                <button onClick={() => setPage('products')} className={`py-3 flex flex-col items-center justify-center gap-1 hover:bg-gray-700/50 ${page === 'products' ? 'text-blue-400' : 'text-gray-400'}`}><PackageIcon className="w-6 h-6"/> <span className="text-xs font-semibold">المنتجات</span></button>
+                <button onClick={() => setPage('scanner')} className={`py-3 flex flex-col items-center justify-center gap-1 hover:bg-gray-700/50 ${page === 'scanner' ? 'text-blue-400' : 'text-gray-400'}`}><ScanLineIcon className="w-6 h-6"/> <span className="text-xs font-semibold">المسح الضوئي</span></button>
+                <button onClick={() => setPage('settings')} className={`py-3 flex flex-col items-center justify-center gap-1 hover:bg-gray-700/50 ${page === 'settings' ? 'text-blue-400' : 'text-gray-400'}`}><SettingsIcon className="w-6 h-6"/> <span className="text-xs font-semibold">الإعدادات</span></button>
+            </footer>
         </div>
     );
 };
 
-const AppContainer: React.FC = () => {
-    const [config, setConfig] = useLocalStorage<FirebaseConfig | null>('scannerFirebaseConfig', null);
-    const [isInitialized, setIsInitialized] = useState(false);
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        if (config) {
-            try {
-                if (!firebase.apps.length) firebase.initializeApp(config);
-                setIsInitialized(true);
-            } catch (e) {
-                setError('فشل تهيئة Firebase. تحقق من الإعدادات.');
-                setConfig(null);
-            }
-        }
-    }, [config, setConfig]);
-
-    const handleConfigSave = (newConfig: FirebaseConfig) => {
-        setConfig(newConfig);
-        // Reloading is a simple way to ensure all Firebase connections are reset with the new config
-        setTimeout(() => window.location.reload(), 300);
-    };
-
-    const handleClearConfig = () => {
-        setConfig(null);
-        setTimeout(() => window.location.reload(), 300);
-    };
-
-    if (!config || !isInitialized) {
-        return <ConfigScreen onSave={handleConfigSave} error={error} initialConfig={config} />;
-    }
-
-    return <ScannerApp onClearConfig={handleClearConfig} />;
-};
-
-// --- Mount Application ---
-const rootEl = document.getElementById('root');
-if (rootEl) {
-    const root = ReactDOM.createRoot(rootEl);
-    root.render(<AppContainer />);
-}
+const rootElement = document.getElementById('root');
+if (!rootElement) throw new Error('Root element not found');
+const root = ReactDOM.createRoot(rootElement);
+root.render(<App />);
