@@ -71,7 +71,7 @@ const Toast: React.FC<{ message: ToastMessage, onDismiss: () => void }> = ({ mes
 };
 
 const ConfigScreen: React.FC<{ onSave: (config: FirebaseConfig) => void; error?: string; initialConfig?: FirebaseConfig | null }> = ({ onSave, error, initialConfig }) => {
-    const [config, setConfig] = useState<Partial<FirebaseConfig>>(initialConfig || {});
+    const [config, setConfig] = useState<Partial<FirebaseConfig>>(initialConfig || { apiKey: '', authDomain: '', databaseURL: '', projectId: '', storageBucket: '', messagingSenderId: '', appId: '' });
     const [pasteArea, setPasteArea] = useState('');
 
     const handlePasteAndParse = () => {
