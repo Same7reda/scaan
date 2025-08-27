@@ -1,0 +1,31 @@
+{
+  "name": "الماسح الضوئي للنظام",
+  "short_name": "الماسح",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#4f46e5",
+  "description": "تطبيق ويب ماسح ضوئي مستقل للربط مع نظام المبيعات.",
+  "icons": [
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_48dp.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_96dp.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/google_cloud_128dp.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "https://www.gstatic.com/images/branding/product/2x/google_cloud_128dp.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}
