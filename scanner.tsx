@@ -101,7 +101,7 @@ const DataMenuScreen: React.FC<{ onSelect: (page: Page) => void; data: Record<st
 const DataListScreen: React.FC<{ title: string; items: any[]; onBack: () => void; renderItem: (item: any, index: number) => React.ReactNode; searchKeys: string[]; }> = ({ title, items, onBack, renderItem, searchKeys }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const filteredItems = useMemo(() => items.filter(item => searchTerm === '' || searchKeys.some(key => String(item[key] || '').toLowerCase().includes(searchTerm.toLowerCase()))), [items, searchTerm, searchKeys]);
-    return (<div className="p-4 flex flex-col h-full"><div className="flex-shrink-0 mb-4"><button onClick={onBack} className="font-semibold text-blue-600 hover:underline mb-2">← العودة إلى القائمة</button><div className="relative"><SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" /><input type="text" placeholder={`ابحث في ${title}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-white border border-gray-300 rounded-md py-2 px-4 pr-10 focus:ring-2 focus:ring-blue-500"/></div></div><div className="flex-grow overflow-y-auto -mx-4 px-4"><div className="space-y-2">{filteredItems.map((item, index) => renderItem(item, index))}</div></div></div>);
+    return (<div className="p-4 flex flex-col h-full"><div className="flex-shrink-0 mb-4"><button onClick={onBack} className="font-semibold text-blue-600 hover:underline mb-2">← العودة إلى القائمة</button><div className="relative"><SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" /><input type="text" placeholder={`ابحث في ${title}...`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-white border border-gray-300 rounded-md py-2 px-4 pr-10 focus:ring-2 focus:ring-blue-500"/></div></div><div className="flex-grow overflow-y-auto -mx-4 px-4"><div className="space-y-3">{filteredItems.map((item, index) => renderItem(item, index))}</div></div></div>);
 };
 
 const App: React.FC = () => {
@@ -110,8 +110,10 @@ const App: React.FC = () => {
     const [firebaseConfig, setFirebaseConfig] = useLocalStorage<FirebaseConfig | null>('scannerFirebaseConfig', null);
     const [firebaseError, setFirebaseError] = useState(''); const [isFirebaseReady, setIsFirebaseReady] = useState(false); const [isLoading, setIsLoading] = useState(true); const [loadingText, setLoadingText] = useState('جاري التحقق من الإعدادات...');
     const [toast, setToast] = useState<ToastMessage | null>(null);
+    const [scannedProductResult, setScannedProductResult] = useState<Product | { notFound: boolean, code: string } | null>(null);
 
-    const showToast = (message: string, type: ToastMessage['type']) => { setToast({ id: Date.now(), message, type }); };
+
+    const showToast = useCallback((message: string, type: ToastMessage['type']) => { setToast({ id: Date.now(), message, type }); }, []);
     const initializeFirebase = useCallback((config: FirebaseConfig) => { setLoadingText('جاري الاتصال بقاعدة البيانات...'); try { if (!firebase.apps.length) firebase.initializeApp(config); setFirebaseError(''); setIsFirebaseReady(true); } catch (e: any) { console.error("Firebase init failed", e); setFirebaseError(`فشل الاتصال: ${e.message}`); setIsFirebaseReady(false); setFirebaseConfig(null); setIsLoading(false); } }, [setFirebaseConfig]);
     useEffect(() => { if (firebaseConfig) initializeFirebase(firebaseConfig); else setIsLoading(false); }, [firebaseConfig, initializeFirebase]);
 
@@ -136,12 +138,18 @@ const App: React.FC = () => {
                 }
             }, (error: any) => { console.error(`Firebase read failed for ${key}`, error); setFirebaseError(`فشل في قراءة بيانات ${key}.`); setIsLoading(false); });
         });
-    }, [isFirebaseReady, isLoading]);
+    }, [isFirebaseReady, isLoading, showToast]);
     
-    const handleScan = (code: string) => {
+    const handleScanResult = (code: string) => {
         firebase.database().ref('barcodeScanner/scannedCode').set({ code: code, timestamp: firebase.database.ServerValue.TIMESTAMP });
         const product = syncedData.products?.find(p => p.barcode === code);
-        if(product) { showToast(`تم العثور على: ${product.name}`, 'success'); } else { showToast(`تم إرسال الكود: ${code}`, 'info'); }
+        if(product) { 
+            setScannedProductResult(product);
+            showToast(`تم العثور على: ${product.name}`, 'success'); 
+        } else { 
+            setScannedProductResult({ notFound: true, code });
+            showToast(`تم إرسال الكود: ${code}`, 'info'); 
+        }
     };
 
     if (isLoading) return <LoadingScreen text={loadingText} />;
@@ -150,32 +158,44 @@ const App: React.FC = () => {
     const renderPage = () => {
         const commonListProps = { onBack: () => setPage('data_menu'), items: [], searchKeys: [] };
         switch (page) {
-            case 'scanner': return <ScannerView onScan={handleScan} />;
+            case 'scanner': return (
+                <div>
+                    <ScannerView onScan={handleScanResult} />
+                    {scannedProductResult && (
+                        <div className="p-4">
+                        <div className="p-4 bg-white rounded-lg shadow-md border fade-in relative">
+                            <button onClick={() => setScannedProductResult(null)} className="absolute top-2 left-2 text-gray-400 hover:text-gray-600"><XIcon className="w-5 h-5"/></button>
+                            {'notFound' in scannedProductResult ? (
+                                <div>
+                                    <h3 className="font-bold text-lg text-red-600">منتج غير موجود</h3>
+                                    <p className="text-gray-600">لم يتم العثور على منتج بالباركود:</p>
+                                    <p className="font-mono text-center bg-gray-100 p-2 rounded-md mt-2">{scannedProductResult.code}</p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <h3 className="font-bold text-lg text-blue-700">{scannedProductResult.name}</h3>
+                                    <div className="mt-2 pt-2 border-t flex justify-between items-center">
+                                        <p className="text-xl font-extrabold text-green-600">{currencyFormat(scannedProductResult.price)}</p>
+                                        <p className="text-md font-semibold text-gray-700">المخزون المتاح: <span className="font-bold">{scannedProductResult.stock}</span></p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        </div>
+                    )}
+                </div>
+            );
             case 'data_menu': return <DataMenuScreen onSelect={setPage} data={syncedData} />;
             case 'settings': return <ConfigScreen onSave={setFirebaseConfig} initialConfig={firebaseConfig} />;
-            case 'products': return <DataListScreen {...commonListProps} title="المنتجات" items={syncedData.products || []} searchKeys={['name', 'barcode']} renderItem={(p: Product) => <div className="bg-white p-3 rounded-lg border flex justify-between"><div><h3 className="font-semibold">{p.name}</h3><p className="text-sm text-gray-500 font-mono">{p.barcode}</p></div><div className="text-right"><p className="font-bold text-blue-600">{currencyFormat(p.price)}</p><p className="text-sm">المخزون: {p.stock}</p></div></div>} />;
-            case 'customers': return <DataListScreen {...commonListProps} title="العملاء" items={syncedData.customers || []} searchKeys={['name', 'phone']} renderItem={(c: Customer) => <div className="bg-white p-3 rounded-lg border"> <h3 className="font-semibold">{c.name}</h3> <p className="text-sm text-gray-500">{c.phone}</p> <p className="text-sm font-bold text-red-600">الدين: {currencyFormat(c.debt)}</p> </div>} />;
-            case 'suppliers': return <DataListScreen {...commonListProps} title="الموردين" items={syncedData.suppliers || []} searchKeys={['name', 'phone']} renderItem={(s: Supplier) => <div className="bg-white p-3 rounded-lg border"> <h3 className="font-semibold">{s.name}</h3> <p className="text-sm text-gray-500">{s.phone}</p> <p className="text-sm font-bold text-red-600">المستحقات: {currencyFormat(s.debt)}</p> </div>} />;
-            case 'invoices': return <DataListScreen {...commonListProps} title="فواتير البيع" items={syncedData.invoices || []} searchKeys={['id', 'customerName']} renderItem={(i: Invoice) => <div className="bg-white p-3 rounded-lg border"> <h3 className="font-semibold">{i.customerName}</h3><p className="text-sm text-gray-500">#{i.id} - {dateFormat(i.date)}</p><p className="font-bold">{currencyFormat(i.total)}</p></div>} />;
-            case 'purchaseInvoices': return <DataListScreen {...commonListProps} title="فواتير الشراء" items={syncedData.purchaseInvoices || []} searchKeys={['id', 'supplierName']} renderItem={(i: PurchaseInvoice) => <div className="bg-white p-3 rounded-lg border"> <h3 className="font-semibold">{i.supplierName}</h3><p className="text-sm text-gray-500">#{i.id} - {dateFormat(i.date)}</p><p className="font-bold">{currencyFormat(i.total)}</p></div>} />;
-            case 'expenses': return <DataListScreen {...commonListProps} title="المصاريف" items={syncedData.expenses || []} searchKeys={['type']} renderItem={(e: Expense) => <div className="bg-white p-3 rounded-lg border"> <h3 className="font-semibold">{e.type}</h3><p className="text-sm text-gray-500">{dateFormat(e.date)}</p><p className="font-bold text-red-600">{currencyFormat(e.amount)}</p></div>} />;
-            case 'bookings': return <DataListScreen {...commonListProps} title="الحجوزات" items={syncedData.bookings || []} searchKeys={['customerName']} renderItem={(b: Booking) => <div className="bg-white p-3 rounded-lg border"> <h3 className="font-semibold">{b.customerName}</h3><p className="text-sm text-gray-500">{new Date(b.bookingDate).toLocaleString('ar-EG')}</p><span className={`px-2 py-1 text-xs font-semibold rounded-full ${b.status === 'confirmed' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{b.status}</span></div>} />;
-            default: return null;
+            case 'products': return <DataListScreen {...commonListProps} title="المنتجات" items={syncedData.products || []} searchKeys={['name', 'barcode']} renderItem={(p: Product) => <div className="bg-white p-3 rounded-lg border flex justify-between items-center shadow-sm"><div><h3 className="font-semibold text-gray-800">{p.name}</h3><p className="text-sm text-gray-500 font-mono">{p.barcode}</p></div><div className="text-right flex-shrink-0 ml-4"><p className="font-bold text-lg text-blue-600">{currencyFormat(p.price)}</p><p className="text-sm text-gray-600">المخزون: {p.stock}</p></div></div>} />;
+            case 'customers': return <DataListScreen {...commonListProps} title="العملاء" items={syncedData.customers || []} searchKeys={['name', 'phone']} renderItem={(c: Customer) => <div className="bg-white p-3 rounded-lg border shadow-sm"> <h3 className="font-semibold text-gray-800">{c.name}</h3><div className="flex justify-between items-center mt-1"><p className="text-sm text-gray-500">{c.phone}</p><p className={`font-bold text-sm ${c.debt > 0 ? 'text-red-500' : 'text-green-600'}`}>الدين: {currencyFormat(c.debt)}</p></div></div>} />;
+            case 'suppliers': return <DataListScreen {...commonListProps} title="الموردين" items={syncedData.suppliers || []} searchKeys={['name', 'phone']} renderItem={(s: Supplier) => <div className="bg-white p-3 rounded-lg border shadow-sm"> <h3 className="font-semibold text-gray-800">{s.name}</h3><div className="flex justify-between items-center mt-1"><p className="text-sm text-gray-500">{s.phone}</p><p className={`font-bold text-sm ${s.debt > 0 ? 'text-red-500' : 'text-green-600'}`}>المستحقات: {currencyFormat(s.debt)}</p></div></div>} />;
+            case 'invoices': return <DataListScreen {...commonListProps} title="فواتير البيع" items={syncedData.invoices || []} searchKeys={['id', 'customerName']} renderItem={(i: Invoice) => <div className="bg-white p-3 rounded-lg border shadow-sm"> <div className="flex justify-between items-start"><div className="font-mono text-xs text-gray-500">{i.id}</div><div className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-700">{i.status}</div></div><h3 className="font-semibold text-gray-800">{i.customerName}</h3><div className="flex justify-between items-center mt-1"><p className="text-sm text-gray-500">{dateFormat(i.date)}</p><p className="font-bold text-blue-600">{currencyFormat(i.total)}</p></div></div>} />;
+            default: return <div>صفحة غير موجودة</div>;
         }
     };
-
-    return (
-        <div className="h-screen bg-gray-100 text-gray-800 flex flex-col font-sans">
-            {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
-            <header className="flex-shrink-0 bg-blue-600 shadow text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><img src="https://i.postimg.cc/D0cf0y0m/512-x-512-1.png" alt="YSK Sales Logo" className="h-8 w-8"/><h1 className="text-xl font-bold">YSK Sales | الماسح الضوئي</h1></div>{isFirebaseReady ? <div className="flex items-center gap-2 text-green-300 text-sm"><CheckCircleIcon className="w-5 h-5"/> متصل</div> : <div className="flex items-center gap-2 text-red-300 text-sm"><WifiOffIcon className="w-5 h-5"/> غير متصل</div>}</header>
-            <main className="flex-grow overflow-y-auto">{renderPage()}</main>
-            <footer className="flex-shrink-0 bg-white grid grid-cols-3 border-t border-gray-200 shadow-inner">
-                <button onClick={() => setPage('data_menu')} className={`py-3 flex flex-col items-center justify-center gap-1 hover:bg-gray-100 ${['data_menu', 'products', 'customers', 'suppliers', 'invoices', 'purchaseInvoices', 'expenses', 'bookings'].includes(page) ? 'text-blue-600' : 'text-gray-500'}`}><DatabaseIcon className="w-6 h-6"/> <span className="text-xs font-semibold">البيانات</span></button>
-                <button onClick={() => setPage('scanner')} className={`py-3 flex flex-col items-center justify-center gap-1 hover:bg-gray-100 ${page === 'scanner' ? 'text-blue-600' : 'text-gray-500'}`}><ScanLineIcon className="w-6 h-6"/> <span className="text-xs font-semibold">المسح</span></button>
-                <button onClick={() => setPage('settings')} className={`py-3 flex flex-col items-center justify-center gap-1 hover:bg-gray-100 ${page === 'settings' ? 'text-blue-600' : 'text-gray-500'}`}><SettingsIcon className="w-6 h-6"/> <span className="text-xs font-semibold">الإعدادات</span></button>
-            </footer>
-        </div>
-    );
+    
+    return (<div className="max-w-xl mx-auto bg-gray-100 min-h-screen"><header className="bg-blue-600 text-white shadow-lg p-4 flex items-center gap-4 sticky top-0 z-10"><img src="https://i.postimg.cc/D0cf0y0m/512-x-512-1.png" alt="Logo" className="h-10 w-10"/><div><h1 className="text-xl font-bold">الماسح الضوئي</h1><p className="text-xs opacity-80">متصل بنظام YSK Sales</p></div></header><main className="pb-20">{renderPage()}</main><footer className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-t-lg max-w-xl mx-auto"><nav className="flex justify-around items-center h-16">{[{p: 'scanner', i: <ScanLineIcon className="w-7 h-7"/>}, {p: 'data_menu', i: <DatabaseIcon className="w-7 h-7"/>}, {p: 'settings', i: <SettingsIcon className="w-7 h-7"/>}].map(({p, i}) => <button key={p} onClick={() => setPage(p as Page)} className={`p-2 rounded-full transition-colors ${page === p ? 'text-blue-600 bg-blue-100' : 'text-gray-500 hover:bg-gray-100'}`}>{i}</button>)}</nav></footer>{toast && <Toast message={toast} onDismiss={() => setToast(null)} />}</div>);
 };
 
 const rootElement = document.getElementById('root');
